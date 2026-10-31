@@ -1,0 +1,55 @@
+{
+  "name": "@local/dsh-material-cards",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Search a local material-notes library and drop a finished card into the message box.",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "materials",
+    "markdown",
+    "notes"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/accoutmissing/dsh-material-cards.git"
+  },
+  "homepage": "https://github.com/accoutmissing/dsh-material-cards#readme",
+  "bugs": {
+    "url": "https://github.com/accoutmissing/dsh-material-cards/issues"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./icon": "./icon.svg",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "icon.svg",
+    "locale/*.json",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  }
+}
