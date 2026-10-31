@@ -15,10 +15,11 @@
  * is cheaper than keeping an index coherent and impossible to get out of sync.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 
 const SEARCH_ROUTE = '/plugins/material-cards/search'
 const CARD_ROUTE = '/plugins/material-cards/card'
+const RULES_ROUTE = '/plugins/material-cards/rules'
 const HOME = process.env.USERPROFILE ?? process.env.HOME ?? ''
 const LOCAL_CONFIG = HOME.length > 0 ? join(HOME, '.dsh', 'material-cards.json') : ''
 const FALLBACK_DIR = 'materials'
@@ -26,6 +27,10 @@ const MAX_FILES = 400
 const CACHE_MS = 5000
 const CARD_BUDGET = 1400
 const TITLE_MAX = 80
+const RULES_ORDER = 950
+const RULES_MAX = 6000
+const RULES_CACHE_MS = 5000
+const RULES_LEAD = '以下规则只在相关内容上生效；与当前任务无关时忽略。'
 
 /**
  * Headings across the 35 notes are heterogeneous — 70 distinct names, from 「定义」 to
@@ -42,7 +47,9 @@ const SECTION_RANK = [
 
 /** Frontmatter is a tiny YAML subset here: `key: value`, inline arrays, one nested map. */
 function parseFrontmatter(text) {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(text)
+  // Some Obsidian files open with an escaped fence (`\---`); tolerate it rather than leak the
+  // property block into a card or a prompt section.
+  const match = /^\\?---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(text)
   if (!match) return { data: {}, body: text }
   const data = {}
   for (const line of match[1].split(/\r?\n/)) {
@@ -278,6 +285,107 @@ function absoluteDir({ root, dir }) {
   return dir.length > 0 ? join(root, dir) : root
 }
 
+let rulesCache = { at: 0, key: '', body: '' }
+/** Set once the prompt section is really registered, so a probe can tell wiring from config. */
+let rulesRegistered = false
+
+/** `rules` arrives from the plugin config first, then the same local file the library uses. */
+function rawRules(config) {
+  const fromConfig = config?.rules
+  if (typeof fromConfig === 'string' && fromConfig.trim().length > 0) return fromConfig
+  const fromLocal = readLocalConfig().rules
+  if (typeof fromLocal === 'string' && fromLocal.trim().length > 0) return fromLocal
+  return ''
+}
+
+/** Which headings survive — a whole brand book is more prompt than any single turn deserves. */
+function wantedSections(config) {
+  const fromConfig = config?.rulesSections
+  if (Array.isArray(fromConfig)) return fromConfig.filter((item) => typeof item === 'string' && item.trim().length > 0)
+  const fromLocal = readLocalConfig().rulesSections
+  if (Array.isArray(fromLocal)) return fromLocal.filter((item) => typeof item === 'string' && item.trim().length > 0)
+  return []
+}
+
+function rulesBudget(config) {
+  const raw = config?.rulesMax ?? readLocalConfig().rulesMax
+  const parsed = Number.parseInt(String(raw ?? ''), 10)
+  if (!Number.isFinite(parsed)) return RULES_MAX
+  return Math.min(Math.max(parsed, 500), 12000)
+}
+
+/** Keep the sections whose heading mentions one of the wanted words; no words means keep all. */
+function keepSections(body, wants) {
+  if (wants.length === 0) return body
+  const lines = body.split(/\r?\n/)
+  const kept = []
+  let keep = false
+  let seen = false
+  for (const line of lines) {
+    const heading = /^##\s+(.*)$/.exec(line)
+    if (heading !== null) {
+      seen = true
+      keep = wants.some((want) => heading[1].includes(want))
+      if (keep) kept.push(line)
+      continue
+    }
+    // The preamble above the first heading is general context, never a filtered-out section.
+    if (!seen || keep) kept.push(line)
+  }
+  return kept.join('\n')
+}
+
+/**
+ * Drop the property block. A fence that survived parsing (some notes open with an escaped
+ * `---`) still ends where the document's first H1 starts, so that is the fallback.
+ */
+function stripPreamble(body) {
+  const parsed = parseFrontmatter(body)
+  if (Object.keys(parsed.data).length > 0) return parsed.body
+  const at = body.search(/^# /m)
+  return at > 0 ? body.slice(at) : body
+}
+
+function capText(text, limit) {
+  const trimmed = text.trim()
+  if (trimmed.length <= limit) return trimmed
+  const cut = trimmed.lastIndexOf('\n', limit)
+  return `${trimmed.slice(0, cut > limit * 0.5 ? cut : limit).trimEnd()}\n（规则已按 rulesMax 截断）`
+}
+
+/**
+ * The rules block, ready for the system prompt. A long file is filtered by heading and then
+ * capped, because a brand book pasted whole costs more context than it returns.
+ */
+function ruleText(config) {
+  const raw = rawRules(config).trim()
+  if (raw.length === 0) return { text: '', source: '', sections: [] }
+  const wants = wantedSections(config)
+  const looksPath = !raw.includes('\n') && raw.length <= 260 && (/[\\/]/.test(raw) || /\.md$/i.test(raw))
+  if (!looksPath) return { text: capText(raw, rulesBudget(config)), source: 'inline', sections: wants }
+  const absolute = isAbsolute(raw) ? raw : join(resolveLibrary(config).root, raw)
+  const now = Date.now()
+  let body = ''
+  if (rulesCache.key === absolute && now - rulesCache.at < RULES_CACHE_MS) {
+    body = rulesCache.body
+  } else {
+    try {
+      body = readFileSync(absolute, 'utf8')
+    } catch {
+      body = ''
+    }
+    rulesCache = { at: now, key: absolute, body }
+  }
+  if (body.length === 0) return { text: '', source: absolute, sections: wants }
+  const picked = keepSections(stripPreamble(body), wants)
+  return { text: capText(picked, rulesBudget(config)), source: absolute, sections: wants }
+}
+
+function rulesBlock(config) {
+  const { text } = ruleText(config)
+  return text.length === 0 ? '' : `${RULES_LEAD}\n\n${text}`
+}
+
 function loadCards(config) {
   const library = resolveLibrary(config)
   const { root, dir } = library
@@ -476,15 +584,51 @@ export function apply(ctx, config) {
     })
   }
 
+  const rules = (req, res) => {
+    if (!fromLoopback(req)) {
+      json(res, 403, { ok: false, error: 'not a local request' })
+      return
+    }
+    if (req.method !== 'GET') {
+      json(res, 405, { ok: false, error: 'method not allowed' })
+      return
+    }
+    const rule = ruleText(config)
+    json(res, 200, {
+      ok: true,
+      registered: rulesRegistered,
+      source: rule.source,
+      sections: rule.sections,
+      length: rule.text.length,
+      text: rule.text
+    })
+  }
+
   ctx.effect(() => {
     const disposers = [
       ctx.webServer.register({ kind: 'exact', path: SEARCH_ROUTE, handler: guard(SEARCH_ROUTE, search) }),
-      ctx.webServer.register({ kind: 'exact', path: CARD_ROUTE, handler: guard(CARD_ROUTE, card) })
+      ctx.webServer.register({ kind: 'exact', path: CARD_ROUTE, handler: guard(CARD_ROUTE, card) }),
+      ctx.webServer.register({ kind: 'exact', path: RULES_ROUTE, handler: guard(RULES_ROUTE, rules) })
     ]
     return () => {
       for (const dispose of disposers) dispose()
     }
   }, 'material-cards: routes')
+
+  // The prompt half is optional: nothing is injected until `rules` names something to inject.
+  const prompt = ctx.get('systemPrompt')
+  if (prompt !== undefined && rawRules(config).trim().length > 0) {
+    ctx.effect(
+      () =>
+        prompt.section({
+          name: 'material-cards:rules',
+          order: RULES_ORDER,
+          text: () => rulesBlock(config)
+        }),
+      'material-cards: prompt rules'
+    )
+    rulesRegistered = true
+  }
 
   // Warm the cache so the first keystroke in the panel is not the one that pays for the read.
   loadCards({ root, dir, fullPath: library.fullPath })
@@ -506,4 +650,16 @@ function guard(path, handler) {
   }
 }
 
-export const internals = { parseFrontmatter, splitSections, sectionText, pickSections, renderCard, readNote, score, loadCards }
+export const internals = {
+  parseFrontmatter,
+  splitSections,
+  sectionText,
+  pickSections,
+  renderCard,
+  readNote,
+  score,
+  loadCards,
+  keepSections,
+  ruleText,
+  rulesBlock
+}

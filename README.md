@@ -94,6 +94,30 @@
 
 `dir` 不存在、或目录里没有 `.md`，检索返回空列表而不是报错——插件装上但还没配库时，面板会显示「材料库里还没有笔记」。
 
+## 把规则注入提示词（可选）
+
+同一个本机文件里还能写一个 `rules`：它会被注册成一段系统提示词，省掉「每个会话都重新翻一遍规范」这一步。不配就没有这段，插件其余行为完全不变。
+
+```json
+{
+  "root": "D:\\\\notes",
+  "dir": "materials",
+  "rules": "brand/design-system.md",
+  "rulesSections": ["概述", "色彩", "红线"],
+  "rulesMax": 4000
+}
+```
+
+| 键 | 作用 |
+|---|---|
+| `rules` | 文件路径（相对 `root`，或绝对路径）；不含分隔符时当成正文本身 |
+| `rulesSections` | 只保留标题里含这些关键词的 `##` 小节；省略就是整篇 |
+| `rulesMax` | 字符上限，默认 6000，夹在 500–12000；超了在最后一个换行处截断并标注 |
+
+这一段前缀写着「只在相关内容上生效」——**插件拿不到「当前是哪个工作区」**（提示词装配上下文里只有 scope 和 signal，没有 cwd），与其根据路径去猜，不如把适用范围写进正文，由模型判断相关性。
+
+`GET /plugins/material-cards/rules` 返回当前生效的正文、来源和 `registered`（提示词段是否真的注册上了），用来区分「路径写错」和「没接上」。
+
 ## 笔记格式
 
 只要求 frontmatter + 二级标题分节，其余自由：
@@ -138,12 +162,13 @@ confidence: medium
 
 ## 路由
 
-两个只读接口，都只认 loopback、只认 `GET`：
+三个只读接口，都只认 loopback、只认 `GET`：
 
 | 路由 | 参数 | 返回 |
 |---|---|---|
 | `GET /plugins/material-cards/search` | `q`（≤64 字）、`limit`（默认 8，上限 35） | `{ok, query, total, results[]}` |
 | `GET /plugins/material-cards/card` | `slug` | `{ok, card, prompt}` |
+| `GET /plugins/material-cards/rules` | 无 | `{ok, registered, source, sections, length, text}` |
 
 `card` 的 `prompt` 就是上面那段要插入的文本，客户端不再二次拼装——**渲染只有一处实现**，宿主和界面不会各自漂移。
 

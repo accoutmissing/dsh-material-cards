@@ -1,9 +1,9 @@
 {
   "name": "@local/dsh-material-cards",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Search a local material-notes library from the composer and drop a finished card into the draft: pinned and recent shelves, one keyboard walk.",
+  "description": "Search a local material-notes library from the composer and drop a finished card into the draft: pinned and recent shelves, one keyboard walk, and an optional rules section for the prompt.",
   "license": "MIT",
   "keywords": [
     "dsh",

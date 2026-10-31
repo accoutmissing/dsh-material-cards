@@ -94,6 +94,30 @@ The per-machine file looks like this (`dir` may be omitted, in which case `root`
 
 If `dir` is missing or holds no `.md` files, search returns an empty list instead of an error — an installed-but-unconfigured plugin shows "no notes in the library yet".
 
+## Injecting rules into the prompt (optional)
+
+The same local file can carry a `rules` entry: it is registered as a system-prompt section, which removes the "grep the guidelines again in every session" step. Leave it out and nothing changes.
+
+```json
+{
+  "root": "D:\\\\notes",
+  "dir": "materials",
+  "rules": "brand/design-system.md",
+  "rulesSections": ["overview", "palette", "red lines"],
+  "rulesMax": 4000
+}
+```
+
+| Key | Effect |
+|---|---|
+| `rules` | A path (relative to `root`, or absolute); a string without a separator is treated as the text itself |
+| `rulesSections` | Keep only the `##` sections whose heading contains one of these words; omit to keep the whole file |
+| `rulesMax` | Character cap, default 6000, clamped to 500–12000; longer text is cut at a line break and marked |
+
+The injected block starts with "only where relevant" — **the plugin cannot see the current workspace**: the assembly context carries only `scope` and `signal`, no cwd. Rather than guess from a path, the scope statement lives in the text and the model decides relevance.
+
+`GET /plugins/material-cards/rules` returns the effective text, its source, and `registered` (whether the prompt section really mounted) — enough to tell a wrong path from a missing wire.
+
 ## Note format
 
 Only frontmatter plus `##` sections is required; everything else is free-form:
@@ -138,12 +162,13 @@ Scoring: title 8, description 4, tags 4, slug 3, body 2 (body hit counts cap at 
 
 ## Routes
 
-Two read-only endpoints, loopback-only, `GET`-only:
+Three read-only endpoints, loopback-only, `GET`-only:
 
 | Route | Params | Returns |
 |---|---|---|
 | `GET /plugins/material-cards/search` | `q` (≤64 chars), `limit` (default 8, max 35) | `{ok, query, total, results[]}` |
 | `GET /plugins/material-cards/card` | `slug` | `{ok, card, prompt}` |
+| `GET /plugins/material-cards/rules` | — | `{ok, registered, source, sections, length, text}` |
 
 `card`'s `prompt` is exactly the text to insert; the client does not reassemble it — **there is one renderer**, so host and UI cannot drift apart.
 
