@@ -22,10 +22,20 @@ So this is not a file browser. It **pre-condenses the library into cards**: titl
 
 1. A "material cards" icon appears on the left of the composer toolbar.
 2. Open it; focus lands in the search box. Typing filters immediately (180 ms debounce, server-side search, not a local list filter).
-3. `↑` `↓` to move, `Enter` to insert, `Esc` to close. Clicking a row works too.
+3. `↑` `↓` to move, `Home` `End` for the ends, `Enter` to insert; `Esc` works in two stages — the first clears the query, the second closes the panel.
 4. The card is appended to the current draft (or dropped straight in when the draft is empty) with one blank line between. Inserting into existing text is an undoable edit — it will not overwrite what you wrote.
 
-An empty query lists every note by most-recently-changed, which doubles as an index.
+An empty query is not a flat dump of every note — it is three shelves:
+
+| Shelf | What is in it | How a note gets there |
+|---|---|---|
+| **Pinned** | the notes you keep quoting | the pin button at the end of a row; click again to release |
+| **Recent** | notes inserted lately (up to 8) | automatic, recorded on insert |
+| **All** | everything else, most recently changed first | — |
+
+A shelf header appears only when it separates two shelves; a lone shelf stays unlabelled. The moment you type, the shelves collapse into one filtered list — a search is a question about the whole library, and no note should be moved away from the others by it.
+
+To the right of the field sit the clear button (×), the hit count and a row-density switch (roomy / compact). Pins, recents and density live in this machine's localStorage only: nothing is uploaded and nothing enters the repository. The `medium` badge on a row is the confidence the note declares in its own frontmatter; a note that declares none simply shows none.
 
 ## What a card looks like
 
