@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 — 2026-11-05
+
+**宿主升到 0.2.2-rc.1 后的兼容性复核：行为没变，把清单里该说的补成正式版本。**
+
+DSH 在加载插件**之前**评估 `engines.dsh`（`dsh-app-boot` 的 `evaluatePluginCompatibility`），不满足就不 import。上一版补了这条声明却留在未发版状态，于是 tag 指向的清单和真正在跑的清单成了两份——这一版把它们对齐。
+
+- **0.2.2-rc.1 实测照常工作**：`/plugins/material-cards/rules` 返回 `registered:true`（规则段仍在提示词里），`/plugins/material-cards/search?q=床垫` 返回 `total:35, results:8`；`conversation.input.left` 上 `dsh-material-cards-entry` active。
+- **面板没有跟着 0.2.2 的浮层新规改成 portal**：0.2.2 要求「fixed 浮层必须挂到 body」，而这个面板走的是宿主自己 popupSelect 的锚定契约（`position:absolute; bottom:calc(100% + 6px)`，留在输入卡内部）。它不是 fixed 浮层，改成 portal 反而会脱离输入框的锚点。判断依据写在 `client.js` 该段注释里。
+
 ## 0.3.0 — 2026-10-31
 
 材料卡解决的是「库在哪、内容是什么」，但还有一半重复劳动没解决：每次新会话，模型仍然要重新去翻那些**从不变化**的规范（色板、禁忌、语气），翻完还可能翻漏。这一版把「稳定的规则」一次性接进提示词。

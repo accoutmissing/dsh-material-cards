@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-material-cards",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "engines": { "dsh": ">=0.2.0-rc.1 <0.3.0-0" },
   "private": true,
   "type": "module",
