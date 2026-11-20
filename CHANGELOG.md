@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.2 — 2026-11-20
+
+**宿主升到 0.2.2-rc.5 后的兼容复核：代码不用改，卡片照出。**
+
+功能代码零改动；patch 只为把复核结论固定到 tag 上——否则「rc.5 到底测过没有」每次都得重新猜。
+
+- **槽位没变。** rc.3 与 rc.5 的槽位目录都是 133 个，交集 133，两边独有 0。卡片用的 `conversation.input.left`、`conversation.input.overlay` 都在（分别由 `dsh-client-ui-conversation`、`dsh-client-ui-commands` 注册）。
+- **宿主服务签名没变。** `ctx.systemPrompt.section({ name, order, text: string | (ctx) => string })`（`dsh-system-prompt/lib/types/index.d.ts:49-60`）——注入规则那条路还是同一个入口；`ctx.webServer.register`（`dsh-host-webserver/lib/types/index.d.ts:193`）、`ctx.locale.register(ns, locale, dict)` / `bind(ns)`（`dsh-client-locale/lib/types/client/index.d.ts:209/226`）同形。
+- **浏览器半部依赖的宿主能力也在**：`captureInsertion` / `insertText` / `setDraft` 在 rc.5 的 `dsh-client-ui-conversation` 里仍是同一组（输入框插入与草稿回填就靠它们）。
+- **实测。** `/plugins/material-cards/rules` 回 200：`registered: true`，读到 `C:\ProgramData\shifeng\适枫\品牌资料\适枫品牌档案\适枫品牌设计系统.md`，切出 品牌概述 / 色彩 / 字体 / 设计红线 四节，`length: 2765`。
+- **范围没动。** `>=0.2.0-rc.1 <0.3.0-0` 在宿主口径（`semver.satisfies(range, { includePrerelease: true })`）下覆盖 `0.2.2-rc.5`。
+
 ## 0.3.1 — 2026-11-05
 
 **宿主升到 0.2.2-rc.1 后的兼容性复核：行为没变，把清单里该说的补成正式版本。**

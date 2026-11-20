@@ -181,6 +181,12 @@ plugin_manager  action: install_bundle
 
 Then toggle the plugin off and on (`set_plugin` + `enabled:false` → `true`) so the new code loads, press `Ctrl+R`, and point `~/.dsh/material-cards.json` at your notes directory.
 
+## Host compatibility
+
+- Verified against host **0.2.2-rc.5**; no code change was needed. Evidence is in the 0.3.2 entry of the [CHANGELOG](CHANGELOG.md).
+- `engines.dsh` = `>=0.2.0-rc.1 <0.3.0-0`, covering 0.2.2-rc.5 under the host's prerelease-inclusive reading.
+- Host surface: the `conversation.input.left` and `conversation.input.overlay` slots, `ctx.systemPrompt.section({ name, order, text })`, `ctx.webServer.register`, `ctx.locale`, and — in the browser half — the `captureInsertion` / `insertText` / `setDraft` handles the host hands the composer. None of it changed shape between rc.3 and rc.5; the slot directory holds the same 133 entries on both.
+
 ## What it deliberately does not do
 
 - **Never writes back to notes** — read-only `.md`.

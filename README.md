@@ -181,6 +181,12 @@ plugin_manager  action: install_bundle
 
 装完把插件关掉再打开（`set_plugin` + `enabled:false` → `true`）让新代码加载，然后 `Ctrl+R` 刷新页面，再用 `~/.dsh/material-cards.json` 指向你的笔记目录。
 
+## 宿主兼容性
+
+- 宿主 **0.2.2-rc.5** 已复核，不改代码即可运行；证据见 [CHANGELOG](CHANGELOG.md) 的 0.3.2 条目。
+- `engines.dsh` = `>=0.2.0-rc.1 <0.3.0-0`，覆盖 0.2.2-rc.5（宿主口径含预发布）。
+- 依赖的宿主面：槽位 `conversation.input.left` / `conversation.input.overlay`、宿主服务 `ctx.systemPrompt.section({ name, order, text })`、`ctx.webServer.register`、`ctx.locale`；浏览器半部用的是宿主给输入框的 `captureInsertion` / `insertText` / `setDraft`。rc.3 → rc.5 之间这些都没有换形状，槽位目录两边都是 133 个。
+
 ## 不做什么
 
 - **不写回笔记**：只读 `.md`，不改内容。
